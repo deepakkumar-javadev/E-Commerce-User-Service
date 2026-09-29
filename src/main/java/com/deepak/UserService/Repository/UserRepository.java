@@ -8,10 +8,10 @@ import org.springframework.stereotype.Repository;
 import com.deepak.UserService.Entity.User;
 
 @Repository
-public interface UserRepository extends JpaRepository<User,Integer>{
+public interface UserRepository extends JpaRepository<User,Long>{
 
 	public Optional <User> findByEmail(String Email);
 	
-	
+	public boolean existsByEmail(String email);
 	
 }

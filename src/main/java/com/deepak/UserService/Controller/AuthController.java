@@ -3,6 +3,7 @@ package com.deepak.UserService.Controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -10,44 +11,55 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.deepak.UserService.DTO.AdminRegisterRequest;
+import com.deepak.UserService.DTO.AdminResponse;
 import com.deepak.UserService.DTO.LoginRequest;
+import com.deepak.UserService.DTO.LoginResponse;
 import com.deepak.UserService.DTO.RegisterRequest;
 import com.deepak.UserService.DTO.UserResponse;
-import com.deepak.UserService.DTO.UserResponse;
-import com.deepak.UserService.Entity.User;
 import com.deepak.UserService.Service.AuthService;
-import java.io.File;
 
+import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/auth") // define base url for all apis
+@RequestMapping("/auth")
 public class AuthController {
 
 	private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
-	
-	
+
 	private final AuthService service;
 
 	public AuthController(AuthService service) {
 		this.service = service;
 	}
 
+	
 	// ## 1.Registration
 
-	@PostMapping("/register") // note : RegisterRequest is binding/dto class spring does the binding //
-								// automaticlly before controller method run
+	@PostMapping("/register")
+
 	public String register(@RequestBody RegisterRequest request) {
 
 		logger.info("Register api called successfully..");
-		// that data transfer to service layer for processing
-		// service> take data > convert into entity> store in repository> return success
-		// msg..
+
 		return service.register(request);
 	}
 
-	// 2. get UserDetails by id
+	//# 2. LOGIN API
+	
+	@PostMapping("/login")
+	public ResponseEntity<LoginResponse> Login(@RequestBody LoginRequest req) {
+		logger.info("login api called succesfully...");
+		LoginResponse response = service.login(req.getEmail(), req.getPassword());
+
+		return ResponseEntity.ok(response);
+	}
+
+	// # 3. Get USER BASIC DETAILS
+
+	
 	@GetMapping("/getuser/{uid}")
-	public ResponseEntity<UserResponse> getUser(@PathVariable Integer uid) {
+	public ResponseEntity<UserResponse> getUser(@PathVariable Long uid) {
 
 		logger.info("logger.info : getUser API Called successfully...");
 		UserResponse user = service.getUserById(uid);
@@ -55,20 +67,25 @@ public class AuthController {
 		return ResponseEntity.ok(user);
 	}
 
-	@PostMapping("/login") // capture incoming data from user request url and bind with the dto object
-	public String Login(@RequestBody LoginRequest req) {
-		logger.info("login api called succesfully...");
-		service.login(req.getEmail(), req.getPassword());
+	//#4. GET USpER BASIC DETIALS + ROLE -> AdminResponse
 
-		return "login successfully";
-	}
-
+	@PreAuthorize("hasRole('ADMIN')")
 	@GetMapping("/UserDetails/{uid}")
-	public String Userinfo(@PathVariable Integer uid) {
+	public ResponseEntity<AdminResponse> Userinfo(@PathVariable Long uid) {
 
-		logger.info("userInfo api called succesfully...");
-		service.getUserDetailsById(uid);
-		return " UserInfo send SUCCUSSFULLY .......for userId " + uid;
+		logger.info("userInfo api called successfully...");
+
+		AdminResponse response = service.getUserDetailsById(uid);
+
+		return ResponseEntity.ok(response);
 	}
-
+	
+	// create admin api 
+	
+	@PostMapping("/registerAdmin")
+	public ResponseEntity<String> createAdmin(
+	        @Valid @RequestBody AdminRegisterRequest request) {
+		logger.info("AdminRegister  successfully...");
+	    return ResponseEntity.ok(service.createAdmin(request));
+	}
 }

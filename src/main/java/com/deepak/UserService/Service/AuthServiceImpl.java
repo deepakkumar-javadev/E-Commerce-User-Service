@@ -1,74 +1,77 @@
 package com.deepak.UserService.Service;
 
-import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.deepak.UserService.DTO.AdminRegisterRequest;
+import com.deepak.UserService.DTO.AdminResponse;
+import com.deepak.UserService.DTO.LoginResponse;
 import com.deepak.UserService.DTO.RegisterRequest;
 import com.deepak.UserService.DTO.UserResponse;
 import com.deepak.UserService.Entity.User;
+import com.deepak.UserService.Entity.UserRole;
 import com.deepak.UserService.Repository.UserRepository;
+import com.deepak.UserService.security.JwtService;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
 	// to generate log message into destination
 	private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
-
-	@Autowired
-	private PasswordEncoder passwordEncoder;
-
-	@Autowired
-	private UserRepository userRepo;
+	private final JwtService jwtService;
+	private final PasswordEncoder passwordEncoder;
+	private final UserRepository userRepo;
 
 	@Override
 	public String register(RegisterRequest request) {
 
-		// for store that dto data we need repository class object & repository class //
-		// need entity to save data // [DTO to entity conversion for db operation ]
+		logger.info("register method called");
 
-		logger.info("register method called ");
-		User user = new User();// ENTITY OBJECT
+		// Check if email already exists
+		if (userRepo.existsByEmail(request.getEmail())) {
+			logger.warn("Registration failed. Email already registered: {}", request.getEmail());
 
-		// set name
-		user.setName(request.getName()); // get name from dto and set to entity class object
-		// set email
-		user.setEmail(request.getEmail()); // get EMAIL from dto and set to entity class object
-		// set password
+			return "Email already registered";
+		}
+
+		User user = new User();
+
+		user.setName(request.getName());
+		user.setEmail(request.getEmail());
+
 		user.setPassword(passwordEncoder.encode(request.getPassword()));
 
-		// external data
+		// Always CUSTOMER during normal registration
+		user.setUserRole(UserRole.CUSTOMER);
 
-		user.setUserRole("Customer");
-
-		// save user data in table
 		userRepo.save(user);
 
-		logger.info("user Registered Succesfully and details store in db...");
+		logger.info("User registered successfully and details stored in DB");
+
 		return "User Registered successfully..";
 	}
 
 	// logic to get user by id
 
 	@Override
-	public UserResponse getUserById(Integer uid) {
+	public UserResponse getUserById(Long uid) {
 
 		User user = userRepo.findById(uid).orElseThrow(() -> {
 			logger.error("User NOT Found" + uid);
 			return new RuntimeException("User not FOUND WITH ID :" + uid);
 		});
-		
-		//dto object and bind entity to dto data
+
+		// dto object and bind entity to dto data
 		UserResponse userRes = new UserResponse();
 		userRes.setUid(user.getUid());
-		userRes.setName(user.getEmail());
+		userRes.setName(user.getName());
 		userRes.setEmail(user.getEmail());
-		userRes.setRole(user.getUserRole());
-		
+
 		logger.info("user found successfully ..");
 		return userRes;
 
@@ -77,24 +80,31 @@ public class AuthServiceImpl implements AuthService {
 	// LOGIN LOGIC
 
 	@Override
-	public String login(String email, String password) {
+	public LoginResponse login(String email, String password) {
 
-		// get user by name
 		User user = userRepo.findByEmail(email).orElseThrow(() -> new RuntimeException("User NOT FOUND"));
 
-		if (user.getEmail().equals(email) && passwordEncoder.matches(password, user.getPassword())) {
-			logger.info("Login successful...");
-			return "Login Success";
+		if (!passwordEncoder.matches(password, user.getPassword())) {
+			logger.warn("Invalid Password for email " + email);
+			throw new RuntimeException("Invalid Credentials");
 		}
 
-		logger.warn("Invalid Password for email " + email);
-		return "Invalid Credentials";
+		String token = jwtService.generateToken(user.getEmail(), user.getUid(), user.getUserRole().name());
+
+		LoginResponse response = new LoginResponse();
+		response.setToken(token);
+		response.setUserId(user.getUid());
+		response.setRole(user.getUserRole().name());
+
+		logger.info("Login successful for email: {}", email);
+
+		return response;
 	}
 
 	// for response LOGIC
 
 	@Override
-	public UserResponse getUserDetailsById(Integer uid) {
+	public AdminResponse getUserDetailsById(Long uid) {
 
 		// get USER from entity table
 		User user = userRepo.findById(uid).orElseThrow(() -> {
@@ -103,15 +113,38 @@ public class AuthServiceImpl implements AuthService {
 		});
 
 		// bind entity user to Dto
-		UserResponse response = new UserResponse();
+		AdminResponse response = new AdminResponse();
 		response.setUid(user.getUid());
 		response.setName(user.getName());
 		response.setEmail(user.getEmail());
-		response.setRole(user.getUserRole());
+		response.setUserRole(user.getUserRole());
 
 		// send data with dto
 		logger.info("user Info send succesfully ..");
 		return response;
+	}
+
+	@Override
+	public String createAdmin(AdminRegisterRequest request) {
+
+		if (userRepo.existsByEmail(request.getEmail())) {
+			return "Email already registered";
+		}
+
+		User user = new User();
+
+		user.setName(request.getName());
+		user.setEmail(request.getEmail());
+
+		// Password ko BCrypt se encode karo
+		user.setPassword(passwordEncoder.encode(request.getPassword()));
+
+		// ADMIN forcefully set hoga
+		user.setUserRole(UserRole.ADMIN);
+
+		userRepo.save(user);
+		logger.info("admin register succesfully..");
+		return "";
 	}
 
 }

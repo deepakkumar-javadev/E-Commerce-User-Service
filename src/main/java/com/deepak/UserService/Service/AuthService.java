@@ -1,8 +1,10 @@
 package com.deepak.UserService.Service;
 
+import com.deepak.UserService.DTO.AdminRegisterRequest;
+import com.deepak.UserService.DTO.AdminResponse;
+import com.deepak.UserService.DTO.LoginResponse;
 import com.deepak.UserService.DTO.RegisterRequest;
 import com.deepak.UserService.DTO.UserResponse;
-import com.deepak.UserService.Entity.User;
 
 public interface AuthService {
 
@@ -11,13 +13,16 @@ public interface AuthService {
 	
 	// Note : ALLWAYS SEND DTO AS RESPONSE ..
 	// to get user by id  
-	public UserResponse getUserById(Integer uid);
+	public UserResponse getUserById(Long uid);
 	
 	
 	// TO LOGIN
-	public String login(String email, String password);
+	public LoginResponse login(String email, String password);
 	
 	// Note : ALLWAYS SEND DTO AS RESPONSE ..
 	// TO RESPONSE TO USER
-	public UserResponse getUserDetailsById(Integer uid);
+	public AdminResponse getUserDetailsById(Long uid);
+	
+	
+	public String createAdmin(AdminRegisterRequest request);
 }

@@ -4,17 +4,11 @@ import com.deepak.UserService.Entity.UserRole;
 
 import lombok.Data;
 
-// DTO fOR sending response to user
-
-
 @Data
-public class UserResponse {
+public class AdminResponse {
 
 	private Long uid;
 	private String name;
 	private String email;
-	
-	
-	
-	
+	private UserRole userRole;
 }
